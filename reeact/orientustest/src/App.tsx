@@ -1,10 +1,25 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { AdminAuthProvider } from './admin/contexts/AdminAuthContext';
+import ScrollToTop from './components/ScrollToTop';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import ContactPage from './pages/ContactPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ProfilePage from './pages/ProfilePage';
+import ProgramsPage from './pages/ProgramsPage';
+import ProgramDetailPage from './pages/ProgramDetailPage';
 import Footer from './components/Footer';
+
+// Admin imports
+import AdminLayout from './admin/components/AdminLayout';
+import AdminProtectedRoute from './admin/components/AdminProtectedRoute';
+import AdminLoginPage from './admin/pages/AdminLoginPage';
+import AdminDashboard from './admin/pages/AdminDashboard';
+import AdminProfilePage from './admin/pages/AdminProfilePage';
+import AdminManagementPage from './admin/pages/AdminManagementPage';
+import AdminProgramsPage from './admin/pages/AdminProgramsPage';
 
 function YellowBanner() {
   const navigate = useNavigate();
@@ -14,8 +29,8 @@ function YellowBanner() {
     navigate('/contact');
   };
 
-  // Don't show banner on auth pages
-  if (location.pathname === '/login' || location.pathname === '/register') {
+  // Don't show banner on auth pages or admin pages
+  if (location.pathname === '/login' || location.pathname === '/register' || location.pathname.startsWith('/admin')) {
     return null;
   }
 
@@ -37,17 +52,56 @@ function YellowBanner() {
 function App() {
   return (
     <Router>
-      <div className="min-h-screen">
-        <Navbar />
-        <YellowBanner />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/contact" element={<ContactPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-        </Routes>
-        <Footer />
-      </div>
+      <AuthProvider>
+        <AdminAuthProvider>
+          <ScrollToTop />
+          <Routes>
+            {/* Admin Routes - Separate from public site */}
+            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route
+              path="/admin"
+              element={
+                <AdminProtectedRoute>
+                  <AdminLayout />
+                </AdminProtectedRoute>
+              }
+            >
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="programs" element={<AdminProgramsPage />} />
+              <Route path="profile" element={<AdminProfilePage />} />
+              <Route
+                path="manage-admins"
+                element={
+                  <AdminProtectedRoute requireOwner>
+                    <AdminManagementPage />
+                  </AdminProtectedRoute>
+                }
+              />
+            </Route>
+
+            {/* Public Routes */}
+            <Route
+              path="/*"
+              element={
+                <div className="min-h-screen">
+                  <Navbar />
+                  <YellowBanner />
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/programs" element={<ProgramsPage />} />
+                    <Route path="/programs/:id" element={<ProgramDetailPage />} />
+                    <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                  </Routes>
+                  <Footer />
+                </div>
+              }
+            />
+          </Routes>
+        </AdminAuthProvider>
+      </AuthProvider>
     </Router>
   );
 }

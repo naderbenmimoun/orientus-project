@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     rememberMe: false,
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,20 +57,23 @@ const LoginPage = () => {
     }
 
     setIsLoading(true);
+    setErrors({});
 
-    // Mock API call - replace with actual backend call later
-    console.log('Login attempt with:', {
-      email: formData.email,
-      password: formData.password,
-      rememberMe: formData.rememberMe,
-    });
+    try {
+      // 🔑 Appel au backend Spring Boot pour la connexion
+      await login(formData.email, formData.password);
 
-    // Simulate API delay
-    setTimeout(() => {
+      // ✅ Connexion réussie - Redirection vers la page d'accueil
+      navigate('/');
+    } catch (error) {
+      // ❌ Erreur de connexion
+      console.error('Login error:', error);
+      setErrors({
+        general: error instanceof Error ? error.message : 'Login failed. Please try again.',
+      });
+    } finally {
       setIsLoading(false);
-      // TODO: Handle successful login and redirect
-      alert('Login successful! (Mock response)');
-    }, 1500);
+    }
   };
 
   return (
@@ -210,6 +217,22 @@ const LoginPage = () => {
                 </a>
               </div>
             </div>
+
+            {/* General Error Message */}
+            {errors.general && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg"
+              >
+                <div className="flex items-center">
+                  <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <span>{errors.general}</span>
+                </div>
+              </motion.div>
+            )}
 
             {/* Submit Button */}
             <motion.button

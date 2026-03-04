@@ -1,4 +1,5 @@
 export enum UserRole {
+  OWNER = 'OWNER',
   ADMIN = 'ADMIN',
   STUDENT = 'STUDENT'
 }
@@ -24,6 +25,7 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
+  token: string | null;
   id: number | null;
   email: string | null;
   firstName: string | null;
