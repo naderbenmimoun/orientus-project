@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { adminService } from '../../services/adminService';
+import { applicationService } from '../../services/applicationService';
 import type { Admin } from '../../services/adminService';
+import type { ApplicationStats } from '../../models/Application';
 
 const AdminDashboard = () => {
   const { admin, isOwner } = useAdminAuth();
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [appStats, setAppStats] = useState<ApplicationStats | null>(null);
 
   // Stats (you can replace with real API calls later)
   const [stats] = useState([
@@ -18,9 +22,16 @@ const AdminDashboard = () => {
     { label: 'Pending Requests', value: '12', icon: '📋', color: 'from-blue-500 to-cyan-600' },
   ]);
 
-  // Fetch admin count for OWNER
+  // Fetch admin count for OWNER and application stats
   useEffect(() => {
-    const fetchAdmins = async () => {
+    const fetchData = async () => {
+      try {
+        const statsData = await applicationService.getStats();
+        setAppStats(statsData);
+      } catch {
+        // Stats may not be available, silently fail
+      }
+
       if (!isOwner || !admin?.email) {
         setIsLoading(false);
         return;
@@ -36,7 +47,7 @@ const AdminDashboard = () => {
       }
     };
 
-    fetchAdmins();
+    fetchData();
   }, [isOwner, admin?.email]);
 
   const containerVariants = {
@@ -140,6 +151,39 @@ const AdminDashboard = () => {
               </div>
             </div>
           )}
+        </motion.div>
+      )}
+
+      {/* Application Stats */}
+      {appStats && (
+        <motion.div variants={itemVariants} className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">Candidatures</h2>
+            <Link
+              to="/admin/applications"
+              className="text-sm text-violet-400 hover:text-violet-300 transition-colors"
+            >
+              Voir tout &rarr;
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-slate-700/30 rounded-lg p-4">
+              <p className="text-slate-400 text-sm">Total</p>
+              <p className="text-3xl font-bold text-white">{appStats.total}</p>
+            </div>
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+              <p className="text-red-400 text-sm">Non répondu</p>
+              <p className="text-3xl font-bold text-red-400">{appStats.nonRepondu}</p>
+            </div>
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
+              <p className="text-orange-400 text-sm">En cours</p>
+              <p className="text-3xl font-bold text-orange-400">{appStats.enCours}</p>
+            </div>
+            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+              <p className="text-green-400 text-sm">Contacté</p>
+              <p className="text-3xl font-bold text-green-400">{appStats.contacte}</p>
+            </div>
+          </div>
         </motion.div>
       )}
 

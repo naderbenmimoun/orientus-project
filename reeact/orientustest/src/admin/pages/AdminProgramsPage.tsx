@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { programService } from '../../services/programService';
 import type { Program, ProgramRequest } from '../../models/Program';
@@ -12,13 +13,10 @@ import {
 } from '../../models/Program';
 
 const AdminProgramsPage = () => {
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  const queryClient = useQueryClient();
   const [successMessage, setSuccessMessage] = useState<string>('');
+  const [formError, setFormError] = useState<string>(''); // For form validation errors
   const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalItems, setTotalItems] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Modal state
@@ -54,26 +52,41 @@ const AdminProgramsPage = () => {
   const [imagePreview, setImagePreview] = useState<string>('');
   const [logoPreview, setLogoPreview] = useState<string>('');
 
-  // Fetch programs
-  const fetchPrograms = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
+  // React Query for programs list with caching
+  const { data, isLoading, isFetching, error } = useQuery({
+    queryKey: ['admin-programs', currentPage, searchQuery],
+    queryFn: () => {
       const filters = searchQuery ? { search: searchQuery } : undefined;
-      const response = await programService.getPrograms(currentPage, 10, filters);
-      setPrograms(response.programs);
-      setTotalPages(response.totalPages);
-      setTotalItems(response.totalItems);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load programs');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      return programService.getPrograms(currentPage, 10, filters);
+    },
+    staleTime: 2 * 60 * 1000, // Admin data stays fresh for 2 minutes
+    gcTime: 5 * 60 * 1000, // Cache persists for 5 minutes
+    placeholderData: (previousData) => previousData, // Keep showing old data while fetching new
+  });
 
-  useEffect(() => {
-    fetchPrograms();
-  }, [currentPage, searchQuery]);
+  // Extract data from React Query response
+  const programs = data?.programs || [];
+  const totalPages = data?.totalPages || 0;
+  const totalItems = data?.totalItems || 0;
+
+  // Mutation for creating/updating programs
+  const programMutation = useMutation({
+    mutationFn: ({ id, data }: { id?: number; data: ProgramRequest }) => 
+      id ? programService.updateProgram(id, data) : programService.createProgram(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-programs'] });
+      queryClient.invalidateQueries({ queryKey: ['programs'] }); // Invalidate public programs cache too
+    },
+  });
+
+  // Mutation for deleting programs
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => programService.deleteProgram(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-programs'] });
+      queryClient.invalidateQueries({ queryKey: ['programs'] });
+    },
+  });
 
   // Handle image upload
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'logo') => {
@@ -82,13 +95,13 @@ const AdminProgramsPage = () => {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      setError('Please select an image file');
+      setFormError('Please select an image file');
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setError('Image size must be less than 5MB');
+      setFormError('Image size must be less than 5MB');
       return;
     }
 
@@ -102,7 +115,7 @@ const AdminProgramsPage = () => {
         setLogoPreview(base64);
       }
     } catch {
-      setError('Failed to process image');
+      setFormError('Failed to process image');
     }
   };
 
@@ -154,28 +167,25 @@ const AdminProgramsPage = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingProgram(null);
-    setError('');
+    setFormError('');
   };
 
   // Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setError('');
 
     try {
-      if (editingProgram) {
-        await programService.updateProgram(editingProgram.id, formData);
-        setSuccessMessage('Program updated successfully!');
-      } else {
-        await programService.createProgram(formData);
-        setSuccessMessage('Program created successfully!');
-      }
+      await programMutation.mutateAsync({
+        id: editingProgram?.id,
+        data: formData,
+      });
+      setSuccessMessage(editingProgram ? 'Program updated successfully!' : 'Program created successfully!');
       closeModal();
-      fetchPrograms();
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save program');
+      // Error is handled by the component's error state from React Query
+      console.error('Failed to save program:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -184,13 +194,12 @@ const AdminProgramsPage = () => {
   // Handle delete
   const handleDelete = async (id: number) => {
     try {
-      await programService.deleteProgram(id);
+      await deleteMutation.mutateAsync(id);
       setSuccessMessage('Program deleted successfully!');
       setDeletingProgramId(null);
-      fetchPrograms();
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete program');
+      console.error('Failed to delete program:', err);
     }
   };
 
@@ -261,7 +270,7 @@ const AdminProgramsPage = () => {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>{error}</span>
+            <span>{error instanceof Error ? error.message : 'Failed to load programs'}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -285,9 +294,21 @@ const AdminProgramsPage = () => {
         </div>
       </motion.div>
 
+      {/* Fetching Indicator */}
+      {isFetching && !isLoading && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-violet-500/20 border border-violet-500/30 rounded-lg px-4 py-3 flex items-center justify-center space-x-3"
+        >
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-violet-400"></div>
+          <span className="text-violet-300 text-sm font-medium">Chargement des programmes...</span>
+        </motion.div>
+      )}
+
       {/* Programs Table */}
       <motion.div variants={itemVariants} className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 overflow-hidden">
-        {isLoading ? (
+        {isLoading && !data ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-violet-500"></div>
           </div>
@@ -299,7 +320,7 @@ const AdminProgramsPage = () => {
             <p className="text-slate-400">No programs found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className={`overflow-x-auto transition-opacity duration-300 ${isFetching && !isLoading ? 'opacity-60' : 'opacity-100'}`}>
             <table className="w-full">
               <thead className="bg-slate-700/50">
                 <tr>
@@ -444,9 +465,9 @@ const AdminProgramsPage = () => {
 
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
                 {/* Error in modal */}
-                {error && (
+                {formError && (
                   <div className="bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm">
-                    {error}
+                    {formError}
                   </div>
                 )}
 

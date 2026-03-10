@@ -20,6 +20,10 @@ import AdminDashboard from './admin/pages/AdminDashboard';
 import AdminProfilePage from './admin/pages/AdminProfilePage';
 import AdminManagementPage from './admin/pages/AdminManagementPage';
 import AdminProgramsPage from './admin/pages/AdminProgramsPage';
+import ApplicationsManagementPage from './admin/pages/ApplicationsManagementPage';
+import ApplicationDetailsPage from './admin/pages/ApplicationDetailsPage';
+import StudentApplicationsPage from './pages/StudentApplicationsPage';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function YellowBanner() {
   const navigate = useNavigate();
@@ -68,6 +72,8 @@ function App() {
             >
               <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="programs" element={<AdminProgramsPage />} />
+              <Route path="applications" element={<ApplicationsManagementPage />} />
+              <Route path="applications/:id" element={<ApplicationDetailsPage />} />
               <Route path="profile" element={<AdminProfilePage />} />
               <Route
                 path="manage-admins"
@@ -94,6 +100,11 @@ function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/my-applications" element={
+                      <ProtectedRoute requiredRole="STUDENT">
+                        <StudentApplicationsPage />
+                      </ProtectedRoute>
+                    } />
                   </Routes>
                   <Footer />
                 </div>

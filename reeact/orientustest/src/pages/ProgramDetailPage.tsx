@@ -1,39 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { programService } from '../services/programService';
-import type { Program } from '../models/Program';
 import { DEGREE_LABELS, CATEGORY_LABELS } from '../models/Program';
+import { useAuth } from '../contexts/AuthContext';
+import ApplicationModal from '../components/ApplicationModal';
 
 const ProgramDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [program, setProgram] = useState<Program | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  const { isAuthenticated } = useAuth();
+  const [showApplicationModal, setShowApplicationModal] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [applicationSuccess, setApplicationSuccess] = useState(false);
 
-  useEffect(() => {
-    const fetchProgram = async () => {
-      if (!id) {
-        setError('Program ID is required');
-        setIsLoading(false);
-        return;
-      }
+  // React Query for program details with caching
+  const { data: program, isLoading, error } = useQuery({
+    queryKey: ['program', id],
+    queryFn: () => {
+      if (!id) throw new Error('Program ID is required');
+      return programService.getProgramById(Number(id));
+    },
+    enabled: !!id, // Only run query if id exists
+    staleTime: 10 * 60 * 1000, // Program details stay fresh for 10 minutes
+    gcTime: 30 * 60 * 1000, // Cache persists for 30 minutes
+  });
 
-      setIsLoading(true);
-      setError('');
-      try {
-        const data = await programService.getProgramById(Number(id));
-        setProgram(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load program');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const handleApplyClick = () => {
+    if (!isAuthenticated) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    setShowApplicationModal(true);
+  };
 
-    fetchProgram();
-  }, [id]);
+  const handleApplicationSuccess = () => {
+    setShowApplicationModal(false);
+    setApplicationSuccess(true);
+    setTimeout(() => setApplicationSuccess(false), 5000);
+  };
 
   if (isLoading) {
     return (
@@ -44,6 +50,7 @@ const ProgramDetailPage = () => {
   }
 
   if (error || !program) {
+    const errorMessage = error instanceof Error ? error.message : 'Program not found';
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-yellow-50 pt-32 pb-12">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -52,7 +59,7 @@ const ProgramDetailPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Program Not Found</h2>
-            <p className="text-gray-600 mb-6">{error || 'The program you are looking for does not exist.'}</p>
+            <p className="text-gray-600 mb-6">{errorMessage}</p>
             <Link
               to="/programs"
               className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -280,9 +287,21 @@ const ProgramDetailPage = () => {
                 </p>
               </div>
 
+              <button
+                onClick={handleApplyClick}
+                className="block w-full py-3 px-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-center font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl mb-4"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                  Postuler à ce programme
+                </span>
+              </button>
+
               <Link
                 to="/contact"
-                className="block w-full py-3 px-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-center font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl mb-4"
+                className="block w-full py-3 px-6 border-2 border-gray-200 text-gray-700 text-center font-semibold rounded-xl hover:border-blue-500 hover:text-blue-600 transition-all mb-4"
               >
                 Demander des informations
               </Link>
@@ -375,6 +394,67 @@ const ProgramDetailPage = () => {
           </div>
         </div>
       </div>
+      {/* Application Modal */}
+      {program && (
+        <ApplicationModal
+          program={program}
+          isOpen={showApplicationModal}
+          onClose={() => setShowApplicationModal(false)}
+          onSuccess={handleApplicationSuccess}
+        />
+      )}
+
+      {/* Login Prompt Modal */}
+      {showLoginPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowLoginPrompt(false)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center"
+          >
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Connectez-vous pour postuler</h3>
+            <p className="text-gray-600 mb-6">Vous devez être connecté pour soumettre votre candidature à ce programme.</p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowLoginPrompt(false)}
+                className="px-6 py-2.5 border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:border-gray-300 transition-all"
+              >
+                Annuler
+              </button>
+              <Link
+                to="/login"
+                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg"
+              >
+                Se connecter
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {applicationSuccess && (
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 50 }}
+          className="fixed bottom-6 right-6 z-50 bg-green-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <p className="font-semibold">Candidature envoyée!</p>
+            <p className="text-sm text-green-100">Votre candidature a été soumise avec succès.</p>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 };

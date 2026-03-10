@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useSearchParams } from 'react-router-dom';
 import { programService } from '../services/programService';
@@ -10,21 +11,9 @@ import {
   DURATION_OPTIONS 
 } from '../models/Program';
 
-// Liste statique des pays pour éviter un appel API supplémentaire
-const COUNTRY_OPTIONS = [
-  'Allemagne', 'Autriche', 'Belgique', 'Canada', 'Espagne', 
-  'États-Unis', 'France', 'Italie', 'Pays-Bas', 'Portugal',
-  'Royaume-Uni', 'Suisse', 'Turquie', 'Pologne', 'Suède'
-].sort();
-
 const ProgramsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalItems, setTotalItems] = useState(0);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
   // Debounce timer ref
@@ -52,6 +41,34 @@ const ProgramsPage = () => {
     language: false
   });
 
+  // React Query for programs data with caching
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
+    queryKey: ['programs', currentPage, filters],
+    queryFn: () => programService.getPrograms(currentPage, 12, filters),
+    staleTime: 5 * 60 * 1000, // Data stays fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Cache persists for 10 minutes
+    placeholderData: (previousData) => previousData, // Keep showing old data while fetching new
+  });
+
+  // Query to get all available countries from the database
+  const { data: allCountriesData } = useQuery({
+    queryKey: ['all-countries'],
+    queryFn: () => programService.getPrograms(0, 1000), // Fetch large set to get all countries
+    staleTime: 30 * 60 * 1000, // Countries list stays fresh for 30 minutes
+    gcTime: 60 * 60 * 1000, // Cache for 1 hour
+    select: (data) => {
+      // Extract unique countries and sort them
+      const countries = [...new Set(data.programs.map(p => p.country))];
+      return countries.sort();
+    },
+  });
+
+  // Extract data from React Query response
+  const programs = data?.programs || [];
+  const totalPages = data?.totalPages || 0;
+  const totalItems = data?.totalItems || 0;
+  const countryOptions = allCountriesData || [];
+
   // Update URL when filters change
   const updateURLParams = useCallback((newFilters: ProgramFilters) => {
     const params = new URLSearchParams();
@@ -60,26 +77,6 @@ const ProgramsPage = () => {
     });
     setSearchParams(params);
   }, [setSearchParams]);
-
-  // Fetch programs
-  const fetchPrograms = useCallback(async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const response = await programService.getPrograms(currentPage, 12, filters);
-      setPrograms(response.programs);
-      setTotalPages(response.totalPages);
-      setTotalItems(response.totalItems);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load programs');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentPage, filters]);
-
-  useEffect(() => {
-    fetchPrograms();
-  }, [fetchPrograms]);
 
   // Handle search with debounce
   const handleSearchChange = (value: string) => {
@@ -423,7 +420,7 @@ const ProgramsPage = () => {
                     </FilterSection>
 
                     <FilterSection title="Emplacements" section="country">
-                      {COUNTRY_OPTIONS.map((country) => (
+                      {countryOptions.map((country) => (
                         <FilterCheckbox key={country} value={country} label={country} filterKey="country" />
                       ))}
                     </FilterSection>
@@ -471,7 +468,7 @@ const ProgramsPage = () => {
               </FilterSection>
 
               <FilterSection title="Emplacements" section="country">
-                {COUNTRY_OPTIONS.map((country) => (
+                {countryOptions.map((country) => (
                   <FilterCheckbox key={country} value={country} label={country} filterKey="country" />
                 ))}
               </FilterSection>
@@ -587,6 +584,14 @@ const ProgramsPage = () => {
               )}
             </div>
 
+            {/* Fetching Indicator - Shows when loading new filter results */}
+            {isFetching && !isLoading && (
+              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-center justify-center space-x-3">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="text-blue-700 text-sm font-medium">Chargement des programmes...</span>
+              </div>
+            )}
+
             {/* Degree Type Tabs */}
             <div className="flex flex-wrap gap-2 mb-6">
               {['Master', 'Licence', 'Programme préparatoire', 'Doctoral Degrees', 'Troisième cycle', 'Post-licence', 'Certificat'].map((tab) => (
@@ -599,16 +604,16 @@ const ProgramsPage = () => {
               ))}
             </div>
 
-            {/* Loading State */}
-            {isLoading ? (
+            {/* Loading State - Only show spinner on initial load */}
+            {isLoading && !data ? (
               <div className="flex items-center justify-center py-20">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               </div>
             ) : error ? (
               <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl text-center">
-                <p>{error}</p>
+                <p>{error instanceof Error ? error.message : 'Failed to load programs'}</p>
                 <button
-                  onClick={fetchPrograms}
+                  onClick={() => refetch()}
                   className="mt-2 text-sm underline hover:no-underline"
                 >
                   Try again
@@ -630,17 +635,19 @@ const ProgramsPage = () => {
               </div>
             ) : (
               <>
-                {/* Programs Grid */}
-                <motion.div
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="grid md:grid-cols-2 gap-6"
-                >
-                  {programs.map((program) => (
-                    <ProgramCard key={program.id} program={program} />
-                  ))}
+                {/* Programs Grid with opacity transition during fetch */}
+                <div className={`transition-opacity duration-300 ${isFetching && !isLoading ? 'opacity-60' : 'opacity-100'}`}>
+                  <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="grid md:grid-cols-2 gap-6"
+                  >
+                    {programs.map((program) => (
+                      <ProgramCard key={program.id} program={program} />
+                    ))}
                 </motion.div>
+                </div>
 
                 {/* Pagination */}
                 {totalPages > 1 && (
