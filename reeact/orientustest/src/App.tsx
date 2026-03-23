@@ -11,6 +11,7 @@ import ProfilePage from './pages/ProfilePage';
 import ProgramsPage from './pages/ProgramsPage';
 import ProgramDetailPage from './pages/ProgramDetailPage';
 import Footer from './components/Footer';
+import ChatWidget from './components/ChatWidget';
 
 // Admin imports
 import AdminLayout from './admin/components/AdminLayout';
@@ -51,6 +52,17 @@ function YellowBanner() {
       </div>
     </button>
   );
+}
+
+function ChatWidgetWrapper() {
+  const location = useLocation();
+
+  // Ne pas afficher le widget sur les pages admin
+  if (location.pathname.startsWith('/admin')) {
+    return null;
+  }
+
+  return <ChatWidget />;
 }
 
 function App() {
@@ -107,6 +119,7 @@ function App() {
                     } />
                   </Routes>
                   <Footer />
+                  <ChatWidgetWrapper />
                 </div>
               }
             />
