@@ -42,4 +42,50 @@ public interface PartnerProgramRepository extends JpaRepository<PartnerProgram, 
             @Param("level") String level,
             @Param("maxBudget") Double maxBudget
     );
+
+    // ═══════════════════════════════════════════════════════════════
+    // Amélioration 9 : Recherche floue (fuzzy search)
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Recherche floue par pays (LIKE insensible à la casse)
+     */
+    @Query("SELECT p FROM PartnerProgram p WHERE LOWER(p.country) LIKE LOWER(CONCAT('%', :country, '%'))")
+    List<PartnerProgram> fuzzySearchByCountry(@Param("country") String country);
+
+    /**
+     * Recherche floue par mot-clé dans le titre OU la description du programme
+     */
+    @Query("SELECT p FROM PartnerProgram p WHERE " +
+            "LOWER(p.programName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(p.universityName) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<PartnerProgram> fuzzySearchByKeyword(@Param("keyword") String keyword);
+
+    // ═══════════════════════════════════════════════════════════════
+    // Amélioration 4 : Requêtes pour le fallback intelligent
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Fallback : même pays, n'importe quel niveau
+     */
+    @Query("SELECT p FROM PartnerProgram p WHERE LOWER(p.country) = LOWER(:country)")
+    List<PartnerProgram> findByCountryOnly(@Param("country") String country);
+
+    /**
+     * Fallback : même niveau, n'importe quel pays
+     */
+    @Query("SELECT p FROM PartnerProgram p WHERE LOWER(p.studyLevel) LIKE LOWER(CONCAT('%', :level, '%'))")
+    List<PartnerProgram> findByLevelOnly(@Param("level") String level);
+
+    /**
+     * Fallback : recherche par mot-clé dans le programme (toutes localisations)
+     */
+    @Query("SELECT p FROM PartnerProgram p WHERE LOWER(p.programName) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<PartnerProgram> findByKeywordOnly(@Param("keyword") String keyword);
+
+    /**
+     * Récupérer tous les niveaux d'études distincts
+     */
+    @Query("SELECT DISTINCT p.studyLevel FROM PartnerProgram p WHERE p.studyLevel IS NOT NULL ORDER BY p.studyLevel")
+    List<String> findDistinctStudyLevels();
 }

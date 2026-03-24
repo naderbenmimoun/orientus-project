@@ -84,7 +84,7 @@ const TrustedUniversities = () => {
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
             Approved by more than{' '}
             <span className="bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-              13,000 universities
+              +50 universities
             </span>{' '}
             worldwide
           </h2>
