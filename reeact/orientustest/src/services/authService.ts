@@ -148,6 +148,46 @@ export const authService = {
   isAuthenticated: (): boolean => {
     return !!localStorage.getItem(TOKEN_KEY);
   },
+
+  /**
+   * 📧 Vérifier l'email avec le code OTP
+   */
+  verifyEmail: async (email: string, code: string): Promise<{ message: string }> => {
+    try {
+      const response = await axiosInstance.post<{ message: string }>('/verify', { email, code });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          throw new Error(error.response.data.message || 'Verification failed');
+        }
+        if (error.request) {
+          throw new Error('Unable to reach the server. Please check your connection.');
+        }
+      }
+      throw new Error('An unexpected error occurred during verification');
+    }
+  },
+
+  /**
+   * 🔄 Renvoyer le code de vérification
+   */
+  resendCode: async (email: string): Promise<{ message: string }> => {
+    try {
+      const response = await axiosInstance.post<{ message: string }>('/resend-code', { email });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          throw new Error(error.response.data.message || 'Failed to resend code');
+        }
+        if (error.request) {
+          throw new Error('Unable to reach the server. Please check your connection.');
+        }
+      }
+      throw new Error('An unexpected error occurred while resending code');
+    }
+  },
 };
 
 export default authService;

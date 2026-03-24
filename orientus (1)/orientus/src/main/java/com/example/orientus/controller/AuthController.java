@@ -1,9 +1,6 @@
 package com.example.orientus.controller;
 
-import com.example.orientus.dto.AuthResponse;
-import com.example.orientus.dto.LoginRequest;
-import com.example.orientus.dto.LoginResponse;
-import com.example.orientus.dto.RegisterRequest;
+import com.example.orientus.dto.*;
 import com.example.orientus.entity.User;
 import com.example.orientus.service.AuthService;
 import com.example.orientus.service.UserService;
@@ -13,9 +10,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 /**
  * Controller pour l'authentification
- * Gère l'inscription, la connexion et la création d'admin
+ * Gère l'inscription, la connexion, la vérification d'email et la création d'admin
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -24,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final UserService userService;
-    private final AuthService authService;  // ← Nouveau : Service pour le login
+    private final AuthService authService;
 
 
     /**
@@ -42,7 +41,7 @@ public class AuthController {
                     user.getFirstName(),
                     user.getLastName(),
                     user.getRole().name(),
-                    "Student registered successfully"
+                    "Student registered successfully. Please check your email for the verification code."
             );
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -119,6 +118,37 @@ public class AuthController {
                     null, null, null, null, null, e.getMessage()
             );
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
+
+
+    /**
+     * 📧 Endpoint de vérification d'email
+     * POST /api/auth/verify
+     */
+    @PostMapping("/verify")
+    public ResponseEntity<Map<String, String>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        try {
+            userService.verifyEmail(request.getEmail(), request.getCode());
+            return ResponseEntity.ok(Map.of("message", "Email verified successfully. You can now log in."));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 🔄 Endpoint pour renvoyer un code de vérification
+     * POST /api/auth/resend-code
+     */
+    @PostMapping("/resend-code")
+    public ResponseEntity<Map<String, String>> resendVerificationCode(@Valid @RequestBody ResendCodeRequest request) {
+        try {
+            userService.resendVerificationCode(request.getEmail());
+            return ResponseEntity.ok(Map.of("message", "A new verification code has been sent to your email."));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 

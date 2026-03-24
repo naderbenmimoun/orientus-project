@@ -13,7 +13,7 @@ const LoginPage = () => {
     rememberMe: false,
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string; emailNotVerified?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,8 +68,10 @@ const LoginPage = () => {
     } catch (error) {
       // ❌ Erreur de connexion
       console.error('Login error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Login failed. Please try again.';
       setErrors({
-        general: error instanceof Error ? error.message : 'Login failed. Please try again.',
+        general: errorMessage,
+        ...(errorMessage.toLowerCase().includes('email not verified') ? { emailNotVerified: 'true' } : {}),
       });
     } finally {
       setIsLoading(false);
@@ -231,6 +233,15 @@ const LoginPage = () => {
                   </svg>
                   <span>{errors.general}</span>
                 </div>
+                {errors.emailNotVerified && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/verify-email', { state: { email: formData.email } })}
+                    className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800 underline transition-colors"
+                  >
+                    Verify my email →
+                  </button>
+                )}
               </motion.div>
             )}
 

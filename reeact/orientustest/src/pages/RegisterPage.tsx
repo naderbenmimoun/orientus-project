@@ -166,13 +166,10 @@ const RegisterPage = () => {
         nationality: formData.nationality.trim(),
       };
 
-      const response = await authService.register(registerData);
+      await authService.register(registerData);
 
-      // Successful registration
-      alert(`Registration successful! Welcome ${response.firstName}!`);
-      
-      // Redirect to login page
-      navigate('/login');
+      // Redirect to email verification page
+      navigate('/verify-email', { state: { email: formData.email } });
     } catch (error) {
       // Handle error
       const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please try again.';

@@ -41,6 +41,11 @@ public class AuthService {
             throw new RuntimeException("Invalid email or password");
         }
 
+        // 📧 ÉTAPE 2.5 : Vérifier si l'email est vérifié
+        if (!user.isVerified()) {
+            throw new RuntimeException("Email not verified. Please check your inbox and verify your email before logging in.");
+        }
+
 
         // 🎫 ÉTAPE 3 : Générer un JWT token
         return jwtUtil.generateToken(user.getEmail(), user.getRole().name());

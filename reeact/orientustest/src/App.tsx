@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import ContactPage from './pages/ContactPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import ProfilePage from './pages/ProfilePage';
 import ProgramsPage from './pages/ProgramsPage';
 import ProgramDetailPage from './pages/ProgramDetailPage';
@@ -35,7 +36,7 @@ function YellowBanner() {
   };
 
   // Don't show banner on auth pages or admin pages
-  if (location.pathname === '/login' || location.pathname === '/register' || location.pathname.startsWith('/admin')) {
+  if (location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/verify-email' || location.pathname.startsWith('/admin')) {
     return null;
   }
 
@@ -111,6 +112,7 @@ function App() {
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/verify-email" element={<VerifyEmailPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/my-applications" element={
                       <ProtectedRoute requiredRole="STUDENT">
