@@ -71,13 +71,44 @@ export interface ProgramRequest {
   featured: boolean;
 }
 
-// Programs list response from API
+// Programs list response from API (paginé)
 export interface ProgramsResponse {
   programs: Program[];
   currentPage: number;
   totalItems: number;
   totalPages: number;
 }
+
+// Réponse de GET /api/programs/all (tout d'un coup)
+export interface AllProgramsResponse {
+  programs: Program[];
+  filters: FiltersMetadata;
+  totalPrograms: number;
+}
+
+// Metadata des filtres disponibles
+export interface FiltersMetadata {
+  countries: string[];
+  categories: string[];
+  degrees: string[];
+  languages: string[];
+}
+
+// Réponse de GET /api/programs/filters (metadata seule)
+export interface FiltersResponse extends FiltersMetadata {
+  totalPrograms: number;
+}
+
+// Compteurs par valeur de filtre
+export interface FilterCounts {
+  byCountry: Record<string, number>;
+  byDegree: Record<string, number>;
+  byCategory: Record<string, number>;
+  byLanguage: Record<string, number>;
+}
+
+// Options de tri
+export type SortOption = 'recommended' | 'newest' | 'titleAsc' | 'titleDesc' | 'tuitionAsc' | 'tuitionDesc';
 
 // Program filters
 export interface ProgramFilters {

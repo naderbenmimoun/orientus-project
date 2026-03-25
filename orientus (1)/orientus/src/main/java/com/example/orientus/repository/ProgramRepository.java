@@ -15,6 +15,10 @@ import java.util.List;
 @Repository
 public interface ProgramRepository extends JpaRepository<Program, Long> {
 
+    // ==========================================
+    // Méthodes existantes (inchangées)
+    // ==========================================
+
     // Recherche par pays
     Page<Program> findByCountry(String country, Pageable pageable);
 
@@ -49,4 +53,45 @@ public interface ProgramRepository extends JpaRepository<Program, Long> {
 
     // Compter les programmes par diplôme
     Long countByDegree(ProgramDegree degree);
+
+    // ==========================================
+    // AMÉLIORATION 2 : Metadata pour les filtres
+    // Requêtes distinctes pour alimenter /api/programs/filters
+    // ==========================================
+
+    @Query("SELECT DISTINCT p.country FROM Program p WHERE p.country IS NOT NULL ORDER BY p.country")
+    List<String> findDistinctCountries();
+
+    @Query("SELECT DISTINCT p.category FROM Program p WHERE p.category IS NOT NULL ORDER BY p.category")
+    List<ProgramCategory> findDistinctCategories();
+
+    @Query("SELECT DISTINCT p.degree FROM Program p WHERE p.degree IS NOT NULL ORDER BY p.degree")
+    List<ProgramDegree> findDistinctDegrees();
+
+    @Query("SELECT DISTINCT p.language FROM Program p WHERE p.language IS NOT NULL ORDER BY p.language")
+    List<String> findDistinctLanguages();
+
+    // ==========================================
+    // AMÉLIORATION 3 : Filtres combinés
+    // Une seule requête JPQL qui combine TOUS les filtres (remplace les else if)
+    // ==========================================
+
+    @Query("SELECT p FROM Program p WHERE " +
+            "(:search IS NULL OR :search = '' OR " +
+            "LOWER(p.title) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(p.university) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(p.country) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(p.city) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+            "(:country IS NULL OR :country = '' OR p.country = :country) AND " +
+            "(:category IS NULL OR p.category = :category) AND " +
+            "(:degree IS NULL OR p.degree = :degree) AND " +
+            "(:language IS NULL OR :language = '' OR p.language = :language)")
+    Page<Program> findWithFilters(
+            @Param("search") String search,
+            @Param("country") String country,
+            @Param("category") ProgramCategory category,
+            @Param("degree") ProgramDegree degree,
+            @Param("language") String language,
+            Pageable pageable
+    );
 }

@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { AdminAuthProvider } from './admin/contexts/AdminAuthContext';
 import ScrollToTop from './components/ScrollToTop';
@@ -13,6 +15,7 @@ import ProgramsPage from './pages/ProgramsPage';
 import ProgramDetailPage from './pages/ProgramDetailPage';
 import Footer from './components/Footer';
 import ChatWidget from './components/ChatWidget';
+import { programService } from './services/programService';
 
 // Admin imports
 import AdminLayout from './admin/components/AdminLayout';
@@ -66,12 +69,50 @@ function ChatWidgetWrapper() {
   return <ChatWidget />;
 }
 
+/**
+ * Warm-up du backend + keep-alive + prefetch des programmes.
+ * Placé dans un composant séparé pour accéder au QueryClient.
+ */
+function BackendWarmup() {
+  const queryClient = useQueryClient();
+
+  // Réveiller le backend dès le chargement de l'app
+  useEffect(() => {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    if (apiUrl) {
+      fetch(`${apiUrl}/api/health`).catch(() => {});
+    }
+  }, []);
+
+  // Keep-alive : ping toutes les 14 min pour éviter le cold start Render
+  useEffect(() => {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    if (!apiUrl) return;
+    const keepAlive = setInterval(() => {
+      fetch(`${apiUrl}/api/health`).catch(() => {});
+    }, 14 * 60 * 1000);
+    return () => clearInterval(keepAlive);
+  }, []);
+
+  // Prefetch des programmes en arrière-plan (cache React Query)
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ['all-programs'],
+      queryFn: () => programService.getAllPrograms(),
+      staleTime: 10 * 60 * 1000,
+    });
+  }, [queryClient]);
+
+  return null;
+}
+
 function App() {
   return (
     <Router>
       <AuthProvider>
         <AdminAuthProvider>
           <ScrollToTop />
+          <BackendWarmup />
           <Routes>
             {/* Admin Routes - Separate from public site */}
             <Route path="/admin/login" element={<AdminLoginPage />} />

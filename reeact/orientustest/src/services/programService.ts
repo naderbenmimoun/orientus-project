@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Program, ProgramRequest, ProgramsResponse, ProgramFilters } from '../models/Program';
+import type { Program, ProgramRequest, ProgramsResponse, ProgramFilters, AllProgramsResponse, FiltersResponse } from '../models/Program';
 
 // Configuration de l'URL de base de l'API
 const API_BASE_URL = 'http://localhost:8084/api';
@@ -211,7 +211,53 @@ export const programService = {
     } catch {
       return [];
     }
-  }
+  },
+
+  /**
+   * 📋 Récupérer TOUS les programmes + filtres en 1 appel (mode "all")
+   * Fallback : retourne null si le endpoint n'existe pas (404)
+   */
+  getAllPrograms: async (): Promise<AllProgramsResponse | null> => {
+    try {
+      const response = await axiosInstance.get<AllProgramsResponse>('/programs/all');
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        // Endpoint pas encore déployé — on bascule en mode paginé
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * 📊 Récupérer uniquement les métadonnées de filtres + totalPrograms
+   * Utilisé pour décider du mode hybride (all vs paginé)
+   * Fallback : retourne null si le endpoint n'existe pas
+   */
+  getFiltersMetadata: async (): Promise<FiltersResponse | null> => {
+    try {
+      const response = await axiosInstance.get<FiltersResponse>('/programs/filters');
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * 💓 Health check — réveiller le backend / keep-alive
+   */
+  healthCheck: async (): Promise<boolean> => {
+    try {
+      await axiosInstance.get('/health');
+      return true;
+    } catch {
+      return false;
+    }
+  },
 };
 
 export default programService;

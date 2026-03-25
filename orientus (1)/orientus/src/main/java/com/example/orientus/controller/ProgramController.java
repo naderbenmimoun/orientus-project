@@ -5,6 +5,7 @@ import com.example.orientus.enums.ProgramCategory;
 import com.example.orientus.enums.ProgramDegree;
 import com.example.orientus.service.ProgramService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -18,19 +19,61 @@ import java.util.Map;
 
 /**
  * Controller pour gérer les programmes universitaires
+ * Amélioré avec : /all, /filters, filtres combinés, stats optimisé
  */
 @RestController
 @RequestMapping("/api/programs")
 @CrossOrigin(origins = "*")
 @RequiredArgsConstructor
+@Slf4j
 public class ProgramController {
 
     private final ProgramService programService;
 
-    /**
-     * GET /api/programs
-     * Récupérer tous les programmes avec pagination et filtres
-     */
+    // ==========================================
+    // AMÉLIORATION 1 : Endpoint /all — Tout en 1 requête (CRITIQUE)
+    // Retourne TOUS les programmes + metadata des filtres en un seul appel
+    // Le frontend l'utilise quand il y a < 200 programmes
+    // ==========================================
+
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllProgramsWithMetadata() {
+        try {
+            log.info("📦 GET /api/programs/all — chargement complet");
+            Map<String, Object> response = programService.getAllProgramsWithMetadata();
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("❌ Erreur /all : {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    // ==========================================
+    // AMÉLIORATION 2 : Endpoint /filters — Metadata seule (CRITIQUE)
+    // Retourne pays, catégories, degrés, langues sans charger les programmes
+    // ==========================================
+
+    @GetMapping("/filters")
+    public ResponseEntity<?> getFilterMetadata() {
+        try {
+            log.info("🔍 GET /api/programs/filters — metadata seule");
+            Map<String, Object> filters = programService.getFilterMetadata();
+            return ResponseEntity.ok(filters);
+        } catch (Exception e) {
+            log.error("❌ Erreur /filters : {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    // ==========================================
+    // AMÉLIORATION 3 : GET /api/programs — Filtres combinés
+    // Remplace les else if par une seule requête multi-filtres
+    // Ajout du paramètre 'language' en bonus
+    // Rétrocompatible : même params qu'avant + language en plus
+    // ==========================================
+
     @GetMapping
     public ResponseEntity<?> getAllPrograms(
             @RequestParam(defaultValue = "0") int page,
@@ -40,7 +83,8 @@ public class ProgramController {
             @RequestParam(required = false) String country,
             @RequestParam(required = false) ProgramCategory category,
             @RequestParam(required = false) ProgramDegree degree,
-            @RequestParam(required = false) String search
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String language
     ) {
         try {
             Sort sort = sortDir.equalsIgnoreCase("ASC")
@@ -48,24 +92,11 @@ public class ProgramController {
                     : Sort.by(sortBy).descending();
 
             Pageable pageable = PageRequest.of(page, size, sort);
-            Page<Program> programsPage;
 
-            // Recherche
-            if (search != null && !search.trim().isEmpty()) {
-                programsPage = programService.searchPrograms(search, pageable);
-            }
-            // Filtres
-            else if (country != null && !country.trim().isEmpty()) {
-                programsPage = programService.getProgramsByCountry(country, pageable);
-            } else if (category != null) {
-                programsPage = programService.getProgramsByCategory(category, pageable);
-            } else if (degree != null) {
-                programsPage = programService.getProgramsByDegree(degree, pageable);
-            }
-            // Tous les programmes
-            else {
-                programsPage = programService.getAllPrograms(pageable);
-            }
+            // AMÉLIORATION : une seule requête combinant TOUS les filtres
+            Page<Program> programsPage = programService.findWithFilters(
+                    search, country, category, degree, language, pageable
+            );
 
             Map<String, Object> response = new HashMap<>();
             response.put("programs", programsPage.getContent());
@@ -76,6 +107,7 @@ public class ProgramController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
+            log.error("❌ Erreur GET /api/programs : {}", e.getMessage());
             Map<String, Object> error = new HashMap<>();
             error.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
@@ -184,18 +216,15 @@ public class ProgramController {
         }
     }
 
-    /**
-     * GET /api/programs/stats
-     * Statistiques sur les programmes
-     */
+    // ==========================================
+    // AMÉLIORATION 5 : Stats optimisé
+    // Remplace Pageable.unpaged() par programRepository.count()
+    // ==========================================
+
     @GetMapping("/stats")
     public ResponseEntity<?> getProgramStats() {
         try {
-            Map<String, Object> stats = new HashMap<>();
-            stats.put("totalPrograms", programService.getAllPrograms(Pageable.unpaged()).getTotalElements());
-
-            // Ajouter d'autres stats si nécessaire
-
+            Map<String, Object> stats = programService.getOptimizedStats();
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
             Map<String, Object> error = new HashMap<>();
