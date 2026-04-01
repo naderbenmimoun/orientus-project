@@ -9,7 +9,9 @@ import {
   DEGREE_LABELS, 
   CATEGORY_LABELS,
   LANGUAGE_OPTIONS,
-  DURATION_OPTIONS 
+  DURATION_OPTIONS,
+  STUDY_MODE_OPTIONS,
+  LANGUAGE_LEVEL_OPTIONS
 } from '../../models/Program';
 
 const AdminProgramsPage = () => {
@@ -45,7 +47,13 @@ const AdminProgramsPage = () => {
     description: '',
     image: '',
     universityLogo: '',
-    featured: false
+    featured: false,
+    studyMode: 'ON_CAMPUS',
+    minGpa: null,
+    minLanguageLevel: 'B2',
+    minIelts: null,
+    minToefl: null,
+    scholarshipAvailable: false
   });
   
   // Image previews
@@ -136,7 +144,13 @@ const AdminProgramsPage = () => {
         description: program.description,
         image: program.image,
         universityLogo: program.universityLogo,
-        featured: program.featured
+        featured: program.featured,
+        studyMode: program.studyMode || 'ON_CAMPUS',
+        minGpa: program.minGpa ?? null,
+        minLanguageLevel: program.minLanguageLevel || 'B2',
+        minIelts: program.minIelts ?? null,
+        minToefl: program.minToefl ?? null,
+        scholarshipAvailable: program.scholarshipAvailable || false
       });
       setImagePreview(program.image);
       setLogoPreview(program.universityLogo);
@@ -155,7 +169,13 @@ const AdminProgramsPage = () => {
         description: '',
         image: '',
         universityLogo: '',
-        featured: false
+        featured: false,
+        studyMode: 'ON_CAMPUS',
+        minGpa: null,
+        minLanguageLevel: 'B2',
+        minIelts: null,
+        minToefl: null,
+        scholarshipAvailable: false
       });
       setImagePreview('');
       setLogoPreview('');
@@ -329,6 +349,7 @@ const AdminProgramsPage = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Location</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Degree</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Featured</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">ML</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -376,6 +397,22 @@ const AdminProgramsPage = () => {
                       ) : (
                         <span className="text-slate-500 text-xs">-</span>
                       )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        {program.studyMode && (
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            program.studyMode === 'ON_CAMPUS' ? 'bg-blue-500/20 text-blue-400' :
+                            program.studyMode === 'DISTANCE' ? 'bg-orange-500/20 text-orange-400' :
+                            'bg-violet-500/20 text-violet-400'
+                          }`}>
+                            {program.studyMode === 'ON_CAMPUS' ? 'Campus' : program.studyMode === 'DISTANCE' ? 'Distance' : 'Hybride'}
+                          </span>
+                        )}
+                        {program.scholarshipAvailable && (
+                          <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded text-xs">🎓 Bourse</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-right">
                       <div className="flex items-center justify-end space-x-2">
@@ -601,6 +638,109 @@ const AdminProgramsPage = () => {
                     className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
                     placeholder="Describe the program..."
                   />
+                </div>
+
+                {/* ========================= */}
+                {/* ML / Admission Criteria   */}
+                {/* ========================= */}
+                <div className="border-t border-slate-700 pt-6">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
+                    <span>🤖</span>
+                    <span>Critères d'admission (ML)</span>
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Study Mode */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Mode d'études</label>
+                      <select
+                        value={formData.studyMode}
+                        onChange={(e) => setFormData(prev => ({ ...prev, studyMode: e.target.value }))}
+                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                      >
+                        {STUDY_MODE_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Min GPA */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">GPA minimum (/20)</label>
+                      <input
+                        type="number"
+                        value={formData.minGpa ?? ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, minGpa: e.target.value ? Number(e.target.value) : null }))}
+                        min="0"
+                        max="20"
+                        step="0.5"
+                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                        placeholder="Ex: 12.0 (vide = pas de minimum)"
+                      />
+                    </div>
+
+                    {/* Min Language Level */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Niveau de langue minimum</label>
+                      <select
+                        value={formData.minLanguageLevel}
+                        onChange={(e) => setFormData(prev => ({ ...prev, minLanguageLevel: e.target.value }))}
+                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                      >
+                        {LANGUAGE_LEVEL_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Min IELTS */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Score IELTS minimum</label>
+                      <input
+                        type="number"
+                        value={formData.minIelts ?? ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, minIelts: e.target.value ? Number(e.target.value) : null }))}
+                        min="0"
+                        max="9"
+                        step="0.5"
+                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                        placeholder="Ex: 6.0 (vide = pas requis)"
+                      />
+                    </div>
+
+                    {/* Min TOEFL */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Score TOEFL minimum</label>
+                      <input
+                        type="number"
+                        value={formData.minToefl ?? ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, minToefl: e.target.value ? Number(e.target.value) : null }))}
+                        min="0"
+                        max="120"
+                        step="1"
+                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                        placeholder="Ex: 80 (vide = pas requis)"
+                      />
+                    </div>
+
+                    {/* Scholarship Available */}
+                    <div className="flex items-center space-x-3 pt-6">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, scholarshipAvailable: !prev.scholarshipAvailable }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          formData.scholarshipAvailable ? 'bg-green-600' : 'bg-slate-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            formData.scholarshipAvailable ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                      <span className="text-slate-300">🎓 Bourse disponible</span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Images */}

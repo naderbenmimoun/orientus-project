@@ -13,6 +13,7 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import ProfilePage from './pages/ProfilePage';
 import ProgramsPage from './pages/ProgramsPage';
 import ProgramDetailPage from './pages/ProgramDetailPage';
+import RecommendationsPage from './pages/RecommendationsPage';
 import Footer from './components/Footer';
 import ChatWidget from './components/ChatWidget';
 import { programService } from './services/programService';
@@ -27,7 +28,9 @@ import AdminManagementPage from './admin/pages/AdminManagementPage';
 import AdminProgramsPage from './admin/pages/AdminProgramsPage';
 import ApplicationsManagementPage from './admin/pages/ApplicationsManagementPage';
 import ApplicationDetailsPage from './admin/pages/ApplicationDetailsPage';
+import AdminMessagingPage from './admin/pages/AdminMessagingPage';
 import StudentApplicationsPage from './pages/StudentApplicationsPage';
+import MessagesPage from './pages/MessagesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function YellowBanner() {
@@ -128,6 +131,7 @@ function App() {
               <Route path="programs" element={<AdminProgramsPage />} />
               <Route path="applications" element={<ApplicationsManagementPage />} />
               <Route path="applications/:id" element={<ApplicationDetailsPage />} />
+              <Route path="messaging" element={<AdminMessagingPage />} />
               <Route path="profile" element={<AdminProfilePage />} />
               <Route
                 path="manage-admins"
@@ -150,6 +154,7 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/programs" element={<ProgramsPage />} />
                     <Route path="/programs/:id" element={<ProgramDetailPage />} />
+                    <Route path="/recommendations" element={<RecommendationsPage />} />
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
@@ -158,6 +163,11 @@ function App() {
                     <Route path="/my-applications" element={
                       <ProtectedRoute requiredRole="STUDENT">
                         <StudentApplicationsPage />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/messages" element={
+                      <ProtectedRoute requiredRole="STUDENT">
+                        <MessagesPage />
                       </ProtectedRoute>
                     } />
                   </Routes>

@@ -52,6 +52,13 @@ export interface Program {
   universityLogo: string;
   featured: boolean;
   createdAt: string;
+  // ML fields
+  studyMode?: string;
+  minGpa?: number | null;
+  minLanguageLevel?: string;
+  minIelts?: number | null;
+  minToefl?: number | null;
+  scholarshipAvailable?: boolean;
 }
 
 // Create/Update program request
@@ -69,6 +76,13 @@ export interface ProgramRequest {
   image: string;
   universityLogo: string;
   featured: boolean;
+  // ML fields
+  studyMode: string;
+  minGpa: number | null;
+  minLanguageLevel: string;
+  minIelts: number | null;
+  minToefl: number | null;
+  scholarshipAvailable: boolean;
 }
 
 // Programs list response from API (paginé)
@@ -171,4 +185,20 @@ export const DURATION_OPTIONS = [
   '4 ans',
   '5 ans',
   '6 ans'
+];
+
+export const STUDY_MODE_OPTIONS = [
+  { value: 'ON_CAMPUS', label: 'Sur campus' },
+  { value: 'BLENDED', label: 'Hybride' },
+  { value: 'DISTANCE', label: 'À distance' },
+];
+
+export const LANGUAGE_LEVEL_OPTIONS = [
+  { value: '', label: 'Non requis' },
+  { value: 'A1', label: 'A1 - Débutant' },
+  { value: 'A2', label: 'A2 - Élémentaire' },
+  { value: 'B1', label: 'B1 - Intermédiaire' },
+  { value: 'B2', label: 'B2 - Intermédiaire avancé' },
+  { value: 'C1', label: 'C1 - Avancé' },
+  { value: 'C2', label: 'C2 - Maîtrise' },
 ];

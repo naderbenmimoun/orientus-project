@@ -1,13 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { messageService } from '../services/messageService';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
+
+  const isStudent = isAuthenticated && user && user.role === 'STUDENT';
+  const userId = user?.id as number | undefined;
+  const { subscribe, unsubscribe } = useWebSocket(isStudent ? userId : undefined);
+
+  // Fetch unread count for students
+  const fetchUnread = useCallback(async () => {
+    if (!isStudent || !userId) return;
+    try {
+      const data = await messageService.getStudentUnreadCount(userId);
+      setUnreadCount(data.unreadCount);
+    } catch { /* silent */ }
+  }, [isStudent, userId]);
+
+  useEffect(() => {
+    fetchUnread();
+    if (!isStudent || !userId) return;
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [fetchUnread, isStudent, userId]);
+
+  // WebSocket: conversation updates → refresh unread
+  useEffect(() => {
+    if (!isStudent || !userId) return;
+    const dest = `/topic/student/${userId}/conversation-update`;
+    subscribe(dest, () => { fetchUnread(); });
+    return () => unsubscribe(dest);
+  }, [isStudent, userId, subscribe, unsubscribe, fetchUnread]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -66,6 +98,15 @@ const Navbar = () => {
                 Programs
               </motion.button>
             </Link>
+            <Link to="/recommendations">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
+              >
+                🎯 Recommandations
+              </motion.button>
+            </Link>
             <Link to="/contact">
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -76,6 +117,28 @@ const Navbar = () => {
               </motion.button>
             </Link>
           </div>
+
+          {/* Messages button (STUDENT only) */}
+          {isStudent && (
+            <div className="hidden md:flex items-center">
+              <Link to="/messages">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="relative text-gray-700 hover:text-blue-600 font-medium transition-colors p-2"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[1.25rem] h-5 px-1 bg-red-500 text-white text-xs font-bold rounded-full">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </motion.button>
+              </Link>
+            </div>
+          )}
 
           {/* Auth Buttons / User Menu */}
           <div className="hidden md:flex items-center space-x-4">
@@ -175,7 +238,7 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <button className="md:hidden p-2">
+          <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             <svg
               className="w-6 h-6 text-gray-700"
               fill="none"
@@ -185,10 +248,53 @@ const Navbar = () => {
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
-              <path d="M4 6h16M4 12h16M4 18h16"></path>
+              {mobileMenuOpen ? (
+                <path d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              )}
             </svg>
           </button>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="md:hidden mt-4 pb-4 space-y-2"
+          >
+            <Link to="/" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg font-medium">Home</Link>
+            <Link to="/programs" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg font-medium">Programs</Link>
+            <Link to="/recommendations" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg font-medium">🎯 Recommandations</Link>
+            <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg font-medium">Contact</Link>
+            {isStudent && (
+              <Link to="/messages" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg font-medium">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Messages
+                {unreadCount > 0 && (
+                  <span className="flex items-center justify-center min-w-[1.25rem] h-5 px-1 bg-red-500 text-white text-xs font-bold rounded-full">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+            )}
+            {isAuthenticated && user ? (
+              <>
+                <Link to="/profile" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg font-medium">My Profile</Link>
+                <Link to="/my-applications" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg font-medium">My Applications</Link>
+                <button onClick={() => { logout(); setMobileMenuOpen(false); navigate('/'); }} className="block w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium">Logout</button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg font-medium">Login</Link>
+                <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg font-semibold">Sign Up</Link>
+              </>
+            )}
+          </motion.div>
+        )}
       </div>
     </motion.nav>
   );

@@ -1,5 +1,7 @@
+import { useState, useEffect, useCallback } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
+import { messageService } from '../../services/messageService';
 
 interface AdminSidebarProps {
   isOpen: boolean;
@@ -9,6 +11,20 @@ interface AdminSidebarProps {
 const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
   const navigate = useNavigate();
   const { admin, isOwner, logout } = useAdminAuth();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const fetchPending = useCallback(async () => {
+    try {
+      const list = await messageService.getPendingConversations();
+      setPendingCount(list.length);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    fetchPending();
+    const interval = setInterval(fetchPending, 30000);
+    return () => clearInterval(interval);
+  }, [fetchPending]);
 
   const handleLogout = () => {
     logout();
@@ -40,6 +56,15 @@ const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+    },
+    {
+      path: '/admin/messaging',
+      label: 'Messagerie',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       ),
     },
@@ -146,6 +171,11 @@ const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
               >
                 {item.icon}
                 <span className="font-medium">{item.label}</span>
+                {item.path === '/admin/messaging' && pendingCount > 0 && (
+                  <span className="ml-auto flex items-center justify-center min-w-[1.25rem] h-5 px-1 bg-red-500 text-white text-xs font-bold rounded-full">
+                    {pendingCount}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>

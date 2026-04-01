@@ -2,6 +2,7 @@ package com.example.orientus.entity;
 
 import com.example.orientus.enums.ProgramCategory;
 import com.example.orientus.enums.ProgramDegree;
+import com.example.orientus.enums.StudyMode;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -61,6 +62,25 @@ public class Program {
 
     @Column
     private LocalDateTime updatedAt;
+
+    // === ML FIELDS - Critères d'admission ===
+    @Enumerated(EnumType.STRING)
+    private StudyMode studyMode;
+
+    private Double minGpa;
+
+    private String minLanguageLevel;  // A1, A2, B1, B2, C1, C2
+
+    private Double minIelts;
+
+    private Integer minToefl;
+
+    private Boolean scholarshipAvailable = false;
+
+    // === Compteurs ML (pour V2 futur) ===
+    private Integer viewCount = 0;
+    private Integer clickCount = 0;
+    private Integer applicationCount = 0;
 
     @PrePersist
     protected void onCreate() {

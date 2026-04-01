@@ -76,6 +76,14 @@ public class ProgramService {
         program.setUniversityLogo(programDetails.getUniversityLogo());
         program.setFeatured(programDetails.getFeatured());
 
+        // === ML FIELDS ===
+        program.setStudyMode(programDetails.getStudyMode());
+        program.setMinGpa(programDetails.getMinGpa());
+        program.setMinLanguageLevel(programDetails.getMinLanguageLevel());
+        program.setMinIelts(programDetails.getMinIelts());
+        program.setMinToefl(programDetails.getMinToefl());
+        program.setScholarshipAvailable(programDetails.getScholarshipAvailable());
+
         log.info("✅ Programme {} mis à jour, caches invalidés", id);
         return programRepository.save(program);
     }
